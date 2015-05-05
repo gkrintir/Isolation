@@ -13,19 +13,70 @@ process.source = cms.Source("PoolSource",
     )
 )
 
-process.myProducerLabel = cms.EDProducer('ProducerTest',
-    electrons = cms.InputTag("slimmedElectrons"),
-    muons = cms.InputTag("slimmedMuons"),
-    jets = cms.InputTag("slimmedJets"),
-    pfCands = cms.InputTag("packedPFCandidates"),                                     
+
+## PUPPI weights ###
+from CommonTools.PileupAlgos.Puppi_cff import puppi
+process.puppi = puppi.clone()
+process.puppi.candName=cms.InputTag("packedPFCandidates")
+process.puppi.vertexName=cms.InputTag("offlineSlimmedPrimaryVertices")
+
+process.puppiSequence = cms.Sequence(process.puppi)
+
+### load default PAT sequence
+process.load("PhysicsTools.PatAlgos.producersLayer1.patCandidates_cff")
+process.load("PhysicsTools.PatAlgos.selectionLayer1.selectedPatCandidates_cff")
+process.patseq = cms.Sequence(process.patCandidates * process.selectedPatCandidates)
+process.p = cms.Path(process.patseq)
+
+
+# remove unnecessary PAT modules
+process.p.remove(process.makePatElectrons)
+process.p.remove(process.makePatPhotons)
+process.p.remove(process.makePatJets)
+process.p.remove(process.makePatTaus)
+process.p.remove(process.makePatMETs)
+process.p.remove(process.patCandidateSummary)
+process.p.remove(process.selectedPatElectrons)
+process.p.remove(process.selectedPatPhotons)
+process.p.remove(process.selectedPatJets)
+process.p.remove(process.selectedPatTaus)
+process.p.remove(process.selectedPatCandidateSummary)
+
+### muon selection
+process.selectedPatMuons.cut = 'pt>10 && abs(eta)<2.4'
+
+# load user-defined muon PF-isolation values
+muon_src, cone_size = 'selectedPatMuons', 0.4
+
+from MuonPFIsolationSequence_cff import *
+
+load_muonPFiso_sequence(process, 'MuonPFIsoSequencePUPPI', algo = 'R04PUPPI',
+  coneR = cone_size,
+  src = muon_src,
+  src_charged_hadron = 'pfPUPPIChargedHadrons',
+  src_neutral_hadron = 'pfPUPPINeutralHadrons',
+  src_photon         = 'pfPUPPIPhotons'
+)
+
+process.MuonPFIsoSequences = cms.Sequence(
+  process.MuonPFIsoSequencePUPPI
 )
 
 
-process.out = cms.OutputModule("PoolOutputModule",
-    fileName = cms.untracked.string('myOutputFile.root')
+process.p.replace(
+  process.selectedPatMuons,
+  process.selectedPatMuons *
+  process.MuonPFIsoSequences
 )
 
-  
-process.p = cms.Path(process.myProducerLabel)
+
+process.p = cms.Path(process.puppiSequence)
+
+
+# --- Output configuration ------------------------------------------------------------
+process.out = cms.OutputModule('PoolOutputModule',
+  fileName = cms.untracked.string('first.root'),
+)
+
 
 process.e = cms.EndPath(process.out)
