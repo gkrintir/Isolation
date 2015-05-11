@@ -172,7 +172,7 @@ ProducerTest::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
         }
 
         // do deltaBeta
-	std::cout<<muons->size()<<std::endl;
+	//std::cout<<muons->size()<<std::endl;
 	std::cout<<muon_isolation.size()<<std::endl;
 	double iso = charged + std::max(0.0, neutral-0.5*pileup);
 	if (lep->pdgId()==13) muon_isolation[1]=iso;//(iso);

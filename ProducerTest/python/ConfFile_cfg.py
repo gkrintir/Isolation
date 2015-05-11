@@ -22,6 +22,7 @@ process.puppi.vertexName=cms.InputTag("offlineSlimmedPrimaryVertices")
 
 process.puppiSequence = cms.Sequence(process.puppi)
 
+
 ### load default PAT sequence
 process.load("PhysicsTools.PatAlgos.producersLayer1.patCandidates_cff")
 process.load("PhysicsTools.PatAlgos.selectionLayer1.selectedPatCandidates_cff")
@@ -53,7 +54,7 @@ from MuonPFIsolationSequence_cff import *
 load_muonPFiso_sequence(process, 'MuonPFIsoSequencePUPPI', algo = 'R04PUPPI',
   coneR = cone_size,
   src = muon_src,
-  src_charged_hadron = 'pfPUPPIChargedHadrons',
+  src_charged_hadron = 'pfPUPPIChargeds', #pfPUPPIChargedHadrons
   src_neutral_hadron = 'pfPUPPINeutralHadrons',
   src_photon         = 'pfPUPPIPhotons'
 )
