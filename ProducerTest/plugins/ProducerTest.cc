@@ -19,7 +19,7 @@
 
 // system include files
 #include <memory>
-
+#include <vector>
 // user include files
 
 #include "FWCore/Framework/interface/Frameworkfwd.h"
@@ -27,9 +27,11 @@
 #include "FWCore/Framework/interface/Event.h"
 #include "FWCore/Framework/interface/MakerMacros.h"
 #include "FWCore/ParameterSet/interface/ParameterSet.h"
+#include "FWCore/Framework/interface/ESHandle.h"
 
 #include "DataFormats/Math/interface/deltaR.h"
 #include "DataFormats/PatCandidates/interface/PackedCandidate.h"
+#include "DataFormats/ParticleFlowCandidate/interface/PFCandidate.h"
 #include "DataFormats/PatCandidates/interface/Muon.h"
 #include "DataFormats/PatCandidates/interface/Electron.h"
 #include "DataFormats/PatCandidates/interface/Jet.h"
@@ -87,7 +89,7 @@ ProducerTest::ProducerTest(const edm::ParameterSet& iConfig):
     electronToken_(consumes<pat::ElectronCollection>(iConfig.getParameter<edm::InputTag>("electrons"))),
     muonToken_(consumes<pat::MuonCollection>(iConfig.getParameter<edm::InputTag>("muons"))),
     jetToken_(consumes<pat::JetCollection>(iConfig.getParameter<edm::InputTag>("jets"))),
-    pfToken_(consumes<pat::PackedCandidateCollection>(iConfig.getParameter<edm::InputTag>("pfCands")))
+    pfToken_(consumes<pat::PackedCandidateCollection>(iConfig.getParameter<edm::InputTag>("pfCands"))) 
 
 {
   //register your products
@@ -136,71 +138,44 @@ ProducerTest::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
     iEvent.getByToken(pfToken_, pfs);
     edm::Handle<pat::JetCollection> jets;
     iEvent.getByToken(jetToken_, jets);
-
-    std::vector<const reco::Candidate *> leptons;
-
-    for (const pat::Muon &mu : *muons) leptons.push_back(&mu);
-    for (const pat::Electron &el : *electrons) leptons.push_back(&el);
-    std::vector<double>  muon_isolation(muons->size(), -999);
-    std::vector<double>  electron_isolation(electrons->size(), -999);
-
-    for (const reco::Candidate *lep : leptons) {
-        if (lep->pt() < 5) continue;
-        // initialize sums
-        double charged = 0, neutral = 0, pileup  = 0;
-        // now get a list of the PF candidates used to build this lepton, so to exclude them
-        std::vector<reco::CandidatePtr> footprint;
-        for (unsigned int i = 0, n = lep->numberOfSourceCandidatePtrs(); i < n; ++i) {
-            footprint.push_back(lep->sourceCandidatePtr(i));
-        }
-        // now loop on pf candidates
-        for (unsigned int i = 0, n = pfs->size(); i < n; ++i) {
-            const pat::PackedCandidate &pf = (*pfs)[i];
-            if (deltaR(pf,*lep) < 0.2) {
-                // pfcandidate-based footprint removal
-                if (std::find(footprint.begin(), footprint.end(), reco::CandidatePtr(pfs,i)) != footprint.end()) {
-                    continue;
-                }
-                if (pf.charge() == 0) {
-                    if (pf.pt() > 0.5) neutral += pf.pt();
-                } else if (pf.fromPV() >= 2) {
-                    charged += pf.pt();
-                } else {
-                    if (pf.pt() > 0.5) pileup += pf.pt();
-                }
-            }
-        }
-
-        // do deltaBeta
-	//std::cout<<muons->size()<<std::endl;
-	std::cout<<muon_isolation.size()<<std::endl;
-	double iso = charged + std::max(0.0, neutral-0.5*pileup);
-	if (lep->pdgId()==13) muon_isolation[1]=iso;//(iso);
+    
+    edm::Handle<reco::PFCandidateCollection> puppi;
+    iEvent.getByLabel("puppi", puppi);
+    assert(puppi.isValid());
+    //    const reco::PFCandidateCollection *PFCol = puppi.product();
+        
+    edm::Handle<edm::ValueMap<float> > weights;
+    iEvent.getByLabel(edm::InputTag("puppi", "PuppiWeights"), weights);
+    assert(weights.isValid());
+    const edm::ValueMap<float> puppi_weights = (*weights.product());
+    std::cout<<"weight size!! "<<puppi_weights.size()<<std::endl;
 	
-	//else if (lep->pdgId()==11) electron_isolation[1]=1;//.push_back(iso);
-        printf("%-8s of pt %6.1f, eta %+4.2f: relIso = %5.2f\n",
-                    abs(lep->pdgId())==13 ? "muon" : "electron",
-                    lep->pt(), lep->eta(), iso/lep->pt());
+    /* 1st Way */
+    /*
+    for (unsigned int i = 0; i <  puppi->size(); ++i) {
+      reco::PFCandidateRef myRef(puppi,i);
+      std::cout<<"weight!" << (*weights)[myRef]<<std::endl;
 
     }
-    storeMuonIso(iEvent, muons, muon_isolation,  "MuonIso");
-    //    storeElectronIso(iEvent, electrons, electron_isolation,  "ElectronIso");
+    */
 
-    // Let's compute the fraction of charged pt from particles with dz < 0.1 cm
-    for (const pat::Jet &j :  *jets) {
-        if (j.pt() < 40 || fabs(j.eta()) > 2.4) continue;
-        double in = 0, out = 0; 
-        for (unsigned int id = 0, nd = j.numberOfDaughters(); id < nd; ++id) {
-            const pat::PackedCandidate &dau = dynamic_cast<const pat::PackedCandidate &>(*j.daughter(id));
-            if (dau.charge() == 0) continue;
-            (fabs(dau.dz())<0.1 ? in : out) += dau.pt();
-        }
-        double sum = in + out;
-        printf("Jet with pt %6.1f, eta %+4.2f, beta(0.1) = %+5.3f, pileup mva disc %+.2f\n",
-                j.pt(),j.eta(), sum ? in/sum : 0, j.userFloat("pileupJetId:fullDiscriminant"));
+    /* 2nd Way */
+    edm::Handle< edm::View<reco::PFCandidate> > pfs_handle;
+    iEvent.getByLabel("puppi", pfs_handle);
+    assert(pfs_handle.isValid());
+
+    for (unsigned int i = 0; i <  pfs_handle->size(); ++i) {
+      const reco::PFCandidate &pf =  pfs_handle->at(i); //read candidate e.g pf.pt() etc
+      //Make a reference or... 
+      edm::RefToBase<reco::PFCandidate>  pf_base_ref;
+      pf_base_ref = pfs_handle->refAt(i);
+      std::cout<<"weight!" << (*weights)[pf_base_ref]<<std::endl;
+      //...a pointer
+      //edm::Ptr<reco::PFCandidate> pf_base_Ptr = pfs_handle->ptrAt(i);
+      //std::cout<<"weight!" << (*weights)[pf_base_Ptr]<<std::endl;
     }
+
 }
-
 
 // ------------ method called once each job just before starting event loop  ------------
 void 

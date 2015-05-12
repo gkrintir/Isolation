@@ -46,6 +46,15 @@ process.p.remove(process.selectedPatCandidateSummary)
 ### muon selection
 process.selectedPatMuons.cut = 'pt>10 && abs(eta)<2.4'
 
+# -- PUPPI
+from pfPUPPISequence_cff import *
+load_pfPUPPI_sequence(process, 'pfPUPPISequence', algo = 'PUPPI',
+                      src_puppi = 'packedPFCandidates',
+                      src_vtx = 'offlineSlimmedPrimaryVertices',
+                      cone_puppi_central = 0.5
+                      )
+
+
 # load user-defined muon PF-isolation values
 muon_src, cone_size = 'selectedPatMuons', 0.4
 
