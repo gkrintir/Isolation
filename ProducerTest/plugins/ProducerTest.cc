@@ -55,35 +55,21 @@ class ProducerTest : public edm::EDProducer {
       virtual void endJob() override;
   
       template<class Hand, typename T>
-      void storeMuonIso(edm::Event &iEvent,
+      void storeLeptonIso(edm::Event &iEvent,
 			const edm::Handle<Hand > & handle, 
 			const std::vector<T> & values,
 			const std::string    & label) const ;
 
-  /*  
-      void storeElectronIso(edm::Event &iEvent,
-			    const edm::Handle<pat::ElectronCollection > & handle, 
-			    const std::vector<double> & values,
-			    const std::string    & label) const ;
-  */
+
       // ----------member data ---------------------------
       edm::EDGetTokenT<pat::ElectronCollection> electronToken_;
       edm::EDGetTokenT<pat::MuonCollection> muonToken_;
     
-  //edm::EDGetTokenT<pat::PackedCandidateCollection> pfToken_;
-      typedef edm::View<reco::Candidate> CandidateView;
-      edm::EDGetTokenT< CandidateView > tokenPFCandidates_;
-      std::vector<edm::EDGetTokenT<edm::ValueMap<float> > > tokenElectronIsoVals_;
+      typedef edm::View<reco::Candidate> candidateView_;
+      edm::EDGetTokenT< candidateView_ > pFCandidatesToken_;
+
 };
 
-//
-// constants, enums and typedefs
-//
-
-
-//
-// static data member definitions
-//
 
 //
 // constructors and destructor
@@ -91,13 +77,12 @@ class ProducerTest : public edm::EDProducer {
 ProducerTest::ProducerTest(const edm::ParameterSet& iConfig):
     electronToken_(consumes<pat::ElectronCollection>(iConfig.getParameter<edm::InputTag>("electrons"))),
     muonToken_(consumes<pat::MuonCollection>(iConfig.getParameter<edm::InputTag>("muons")))
-    //    pfToken_(consumes<pat::PackedCandidateCollection>(iConfig.getParameter<edm::InputTag>("pfCands"))) 
 
 {
-  tokenPFCandidates_= consumes<CandidateView>(iConfig.getParameter<edm::InputTag>("pfCands")); //e.g. 
+  pFCandidatesToken_= consumes<candidateView_>(iConfig.getParameter<edm::InputTag>("pfCands"));
 
   produces<edm::ValueMap<double> > ("MuonPuppiIso");
-  //produces<edm::ValueMap<double> >("ElectronPuppiIso");
+  produces<edm::ValueMap<double> > ("ElectronPuppiIso");
 
   
 }
@@ -120,64 +105,31 @@ ProducerTest::~ProducerTest()
 void
 ProducerTest::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 {
-    using namespace edm;
-
+    //Handle Particle Collections
     edm::Handle<pat::MuonCollection> muons;
     iEvent.getByToken(muonToken_, muons);
+    assert(muons.isValid());
     edm::Handle<pat::ElectronCollection> electrons;
     iEvent.getByToken(electronToken_, electrons);
-    //edm::Handle<pat::PackedCandidateCollection> pfs;
-    // iEvent.getByToken(pfToken_, pfs);
-    
-    edm::Handle<CandidateView> pfs_;
-    iEvent.getByToken(tokenPFCandidates_,pfs_);
-    //    const pat::PackedCandidateCollection *pfs = dynamic_cast<const pat::PackedCandidateCollection*>(pfs_.product());
-    const CandidateView *pfs = pfs_.product();
-    
-    edm::Handle<reco::PFCandidateCollection> puppi;
-    iEvent.getByLabel("puppi", puppi);
-    assert(puppi.isValid());
-    //    const reco::PFCandidateCollection *PFCol = puppi.product();
+    assert(electrons.isValid());
+    edm::Handle<candidateView_> pfs;
+    iEvent.getByToken(pFCandidatesToken_,pfs);
+    assert(pfs.isValid());
 
-    
+    //Handle Value Map for PUPPI weights
     edm::Handle<edm::ValueMap<float> > weights;
-    iEvent.getByLabel(edm::InputTag("puppi", "PuppiWeights"), weights);
+    iEvent.getByLabel(edm::InputTag("puppi", "PuppiWeights"), weights); //hardcoded, extended to PF-weights?!
     assert(weights.isValid());
-    const edm::ValueMap<float> puppi_weights = (*weights.product());
-    std::cout<<"weight size!! "<<puppi_weights.size()<<std::endl;
-    std::cout<<"weight size!! "<<pfs->size()<<std::endl;	
-   
-
-    /* 2nd Way */
-    /*
-    edm::Handle< edm::View<reco::PFCandidate> > pfs_handle;
-    iEvent.getByLabel("puppi", pfs_handle);
-    assert(pfs_handle.isValid());
-
-    for (unsigned int i = 0; i <  pfs_handle->size(); ++i) {
-      const reco::PFCandidate &pf =  pfs_handle->at(i); //read candidate e.g pf.pt() etc
-      //Make a reference or... 
-      edm::RefToBase<reco::PFCandidate>  pf_base_ref;
-      pf_base_ref = pfs_handle->refAt(i);
-      std::cout<<"weight!" << (*weights)[pf_base_ref]<<std::endl;
-      //...a pointer
-      //edm::Ptr<reco::PFCandidate> pf_base_Ptr = pfs_handle->ptrAt(i);
-      //std::cout<<"weight!" << (*weights)[pf_base_Ptr]<<std::endl;
-    }
-    */
 
     std::vector<const reco::Candidate *> leptons;
 
-    for (const pat::Muon &mu : *muons) {
-      std::cout<<"muons!!!!!!!!!!!!! "<<std::endl;
-      leptons.push_back(&mu);
-    }
+    for (const pat::Muon &mu : *muons) leptons.push_back(&mu);
     for (const pat::Electron &el : *electrons) leptons.push_back(&el);
-    std::vector<double>  muon_isolation_;
-    //std::vector<double>  electron_isolation(electrons->size(), -999);
+
+    std::vector<double>  muon_isolation;
+    std::vector<double>  electron_isolation;
 
     for (const reco::Candidate *lep : leptons) {
-      //  if (lep->pt() < 5) continue;
         // initialize sums
         float charged = 0, neutral = 0, photons  = 0;
 
@@ -188,26 +140,22 @@ ProducerTest::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 	}
 
 	// now loop on pf candidates
-	/* 1st Way */
+	// one possible Way 
     	//
 	for (unsigned int i = 0; i <  pfs->size(); ++i) {
-	  //for(CandidateView::const_iterator itPF = pfs->begin(); itPF!=pfs->end(); itPF++) {
-	  //const pat::PackedCandidate* lPack = dynamic_cast<const pat::PackedCandidate*>(&(*itPF));
-	  //if (lPack==0)continue;
-	  //const pat::PackedCandidateRef myRef((*PackedCandidateCollection)pfs,i);
-	  //std::cout<<lPack->charge()<<std::endl;
-	  //std::cout<<"weight!" << (*weights)[myRef]<<std::endl;
-	  const pat::PackedCandidate *pf =  dynamic_cast<const pat::PackedCandidate*>(&pfs->at(i));
-	  //      const pat::PackedCandidateRef myRef(lPack->ref());
+	  const pat::PackedCandidate *pf =  dynamic_cast<const pat::PackedCandidate*>(&pfs->at(i)); //check if const pat::PackedCandidate!=0 ?
+
 	  edm::RefToBase<reco::Candidate>  pf_base_ref;
 	  pf_base_ref = pfs->refAt(i);
-      
 	  float weight = (*weights)[pf_base_ref];
-	  if (deltaR(*pf,*lep) < 0.4) {
+
+	  if (deltaR(*pf,*lep) < 0.4) { //hardcoded!
+
 	    // pfcandidate-based footprint removal
 	    if (std::find(footprint.begin(), footprint.end(), reco::CandidatePtr(pfs,i)) != footprint.end()) {
 	      continue;
 	    }
+
 	    if (pf->charge() == 0) {
 	      if (pf->pdgId() == 22) photons += weight*pf->pt();
 	      else
@@ -219,25 +167,20 @@ ProducerTest::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 	  }	
 	}
   
-	// do deltaBeta
-	std::cout<<muons->size()<<std::endl;
-	std::cout<<muon_isolation_.size()<<std::endl;
 	double rel_iso = (charged + neutral + photons)/lep->pt();
-	//std::cout<<"weight!" << iso<<std::endl;
-	if (abs(lep->pdgId())==13) {
-	  std::cout<<" gemizo!!!!!!!"<<std::endl;
-	  muon_isolation_.push_back(rel_iso);//(iso);
-	}
-	//else if (lep->pdgId()==11) electron_isolation[1]=1;//.push_back(iso);
+	if (abs(lep->pdgId())==13) muon_isolation.push_back(rel_iso);
+	else if (abs(lep->pdgId())==11) electron_isolation.push_back(rel_iso);
+
         printf("%-8s of pt %6.1f, eta %+4.2f: relIso = %5.2f\n",
 	       abs(lep->pdgId())==13 ? "muon" : "electron",
 	       lep->pt(), lep->eta(), rel_iso);
 	
     }
-    std::cout<<!muon_isolation_.empty()<<std::endl;
-    std::cout<< muon_isolation_.capacity()<<" "<< muon_isolation_.capacity()<<std::endl;
-    if(!muon_isolation_.empty())
-      storeMuonIso(iEvent, muons, muon_isolation_,  "MuonPuppiIso");
+
+    if(!muon_isolation.empty())
+      storeLeptonIso(iEvent, muons, muon_isolation,  "MuonPuppiIso");
+    if(!electron_isolation.empty())
+      storeLeptonIso(iEvent, electrons, electron_isolation, "ElectronPuppiIso");
 
 }
 
@@ -265,16 +208,12 @@ ProducerTest::fillDescriptions(edm::ConfigurationDescriptions& descriptions) {
 
 template<class Hand, typename T>
 void
-ProducerTest:: storeMuonIso(edm::Event &iEvent,
+ProducerTest:: storeLeptonIso(edm::Event &iEvent,
 			    const edm::Handle<Hand > & handle,
 			    const std::vector<T> & values,
 			    const std::string    & label) const {
 
   
-    using namespace edm; 
-    using namespace std;
-    std::cout<<"func"<<handle->size()<<std::endl;
-    std::cout<<"func"<<values.size()<<std::endl;
     std::auto_ptr<edm::ValueMap<T> > valMap(new edm::ValueMap<T>());
     typename edm::ValueMap<T>::Filler filler(*valMap);
 
@@ -283,21 +222,6 @@ ProducerTest:: storeMuonIso(edm::Event &iEvent,
     iEvent.put(valMap, label);
 
 }
-/*
-void
-ProducerTest:: storeElectronIso(edm::Event &iEvent,
-				const edm::Handle<pat::ElectronCollection > & handle,
-				const std::vector<double> & values,
-				const std::string    & label) const {
-  
-    using namespace edm; 
-    using namespace std;
-    auto_ptr<ValueMap<double> > valMap(new ValueMap<double>());
-    typename edm::ValueMap<double>::Filler filler(*valMap);
-    filler.insert(handle, values.begin(), values.end());
-    filler.fill();
-    iEvent.put(valMap, label);
-}
-*/
+
 //define this as a plug-in
 DEFINE_FWK_MODULE(ProducerTest);
