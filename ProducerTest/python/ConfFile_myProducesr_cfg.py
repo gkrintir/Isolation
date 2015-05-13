@@ -14,6 +14,12 @@ process.source = cms.Source("PoolSource",
 )
 
 
+# -- PF-Weighted
+from CommonTools.ParticleFlow.ParticleSelectors.pfAllChargedHadrons_cfi import *
+from CommonTools.ParticleFlow.ParticleSelectors.pfAllNeutralHadrons_cfi import *
+from CommonTools.ParticleFlow.ParticleSelectors.pfAllPhotons_cfi import *
+#process.load('CommonTools.ParticleFlow.deltaBetaWeights_cff')
+
 ## PUPPI weights ###
 from CommonTools.PileupAlgos.Puppi_cff import puppi
 process.puppi = puppi.clone()
@@ -21,11 +27,12 @@ process.puppi.candName=cms.InputTag("packedPFCandidates")
 process.puppi.vertexName=cms.InputTag("offlineSlimmedPrimaryVertices")
 process.puppiSequence = cms.Sequence(process.puppi)
 
-process.myProducerLabel = cms.EDProducer('ProducerTest',
+process.myProducerLabel = cms.EDProducer('PUPPILeptonIsoProducer',
     electrons = cms.InputTag("slimmedElectrons"),
     muons = cms.InputTag("slimmedMuons"),
     jets = cms.InputTag("slimmedJets"),
-    pfCands = cms.InputTag("packedPFCandidates"),                                     
+    pfCands = cms.InputTag("packedPFCandidates"),
+    puppi = cms.InputTag("puppi", "PuppiWeights")                                     
 )
 
 

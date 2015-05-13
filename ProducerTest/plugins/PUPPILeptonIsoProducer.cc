@@ -1,9 +1,9 @@
 // -*- C++ -*-
 //
-// Package:    test/ProducerTest
-// Class:      ProducerTest
+// Package:    test/PUPPILeptonIsoProducer
+// Class:      PUPPILeptonIsoProducer
 // 
-/**\class ProducerTest ProducerTest.cc test/ProducerTest/plugins/ProducerTest.cc
+/**\class PUPPILeptonIsoProducer PUPPILeptonIsoProducer.cc test/PUPPILeptonIsoProducer/plugins/PUPPILeptonIsoProducer.cc
 
  Description: [one line class summary]
 
@@ -42,10 +42,10 @@
 // class declaration
 //
 
-class ProducerTest : public edm::EDProducer {
+class PUPPILeptonIsoProducer : public edm::EDProducer {
    public:
-      explicit ProducerTest(const edm::ParameterSet&);
-      ~ProducerTest();
+      explicit PUPPILeptonIsoProducer(const edm::ParameterSet&);
+      ~PUPPILeptonIsoProducer();
 
       static void fillDescriptions(edm::ConfigurationDescriptions& descriptions);
 
@@ -64,22 +64,23 @@ class ProducerTest : public edm::EDProducer {
       // ----------member data ---------------------------
       edm::EDGetTokenT<pat::ElectronCollection> electronToken_;
       edm::EDGetTokenT<pat::MuonCollection> muonToken_;
-    
       typedef edm::View<reco::Candidate> candidateView_;
       edm::EDGetTokenT< candidateView_ > pFCandidatesToken_;
-
+   
+      edm::EDGetTokenT<edm::ValueMap<float> > puppiToken_;
 };
 
 
 //
 // constructors and destructor
 //
-ProducerTest::ProducerTest(const edm::ParameterSet& iConfig):
+PUPPILeptonIsoProducer::PUPPILeptonIsoProducer(const edm::ParameterSet& iConfig):
     electronToken_(consumes<pat::ElectronCollection>(iConfig.getParameter<edm::InputTag>("electrons"))),
-    muonToken_(consumes<pat::MuonCollection>(iConfig.getParameter<edm::InputTag>("muons")))
+    muonToken_(consumes<pat::MuonCollection>(iConfig.getParameter<edm::InputTag>("muons"))),
+    pFCandidatesToken_(consumes<candidateView_>(iConfig.getParameter<edm::InputTag>("pfCands"))),
+    puppiToken_(consumes<edm::ValueMap<float> >(iConfig.getParameter<edm::InputTag>("puppi")))
 
 {
-  pFCandidatesToken_= consumes<candidateView_>(iConfig.getParameter<edm::InputTag>("pfCands"));
 
   produces<edm::ValueMap<double> > ("MuonPuppiIso");
   produces<edm::ValueMap<double> > ("ElectronPuppiIso");
@@ -88,7 +89,7 @@ ProducerTest::ProducerTest(const edm::ParameterSet& iConfig):
 }
 
 
-ProducerTest::~ProducerTest()
+PUPPILeptonIsoProducer::~PUPPILeptonIsoProducer()
 {
  
    // do anything here that needs to be done at desctruction time
@@ -103,7 +104,7 @@ ProducerTest::~ProducerTest()
 
 // ------------ method called to produce the data  ------------
 void
-ProducerTest::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
+PUPPILeptonIsoProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 {
     //Handle Particle Collections
     edm::Handle<pat::MuonCollection> muons;
@@ -118,7 +119,7 @@ ProducerTest::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 
     //Handle Value Map for PUPPI weights
     edm::Handle<edm::ValueMap<float> > weights;
-    iEvent.getByLabel(edm::InputTag("puppi", "PuppiWeights"), weights); //hardcoded, extended to PF-weights?!
+    iEvent.getByToken(puppiToken_, weights); //hardcoded, extended to PF-weights?!
     assert(weights.isValid());
 
     std::vector<const reco::Candidate *> leptons;
@@ -186,18 +187,18 @@ ProducerTest::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 
 // ------------ method called once each job just before starting event loop  ------------
 void 
-ProducerTest::beginJob()
+PUPPILeptonIsoProducer::beginJob()
 {
 }
 
 // ------------ method called once each job just after ending the event loop  ------------
 void 
-ProducerTest::endJob() {
+PUPPILeptonIsoProducer::endJob() {
 }
 
 // ------------ method fills 'descriptions' with the allowed parameters for the module  ------------
 void
-ProducerTest::fillDescriptions(edm::ConfigurationDescriptions& descriptions) {
+PUPPILeptonIsoProducer::fillDescriptions(edm::ConfigurationDescriptions& descriptions) {
   //The following says we do not know what parameters are allowed so do no validation
   // Please change this to state exactly what you do use, even if it is no parameters
   edm::ParameterSetDescription desc;
@@ -208,7 +209,7 @@ ProducerTest::fillDescriptions(edm::ConfigurationDescriptions& descriptions) {
 
 template<class Hand, typename T>
 void
-ProducerTest:: storeLeptonIso(edm::Event &iEvent,
+PUPPILeptonIsoProducer:: storeLeptonIso(edm::Event &iEvent,
 			    const edm::Handle<Hand > & handle,
 			    const std::vector<T> & values,
 			    const std::string    & label) const {
@@ -224,4 +225,4 @@ ProducerTest:: storeLeptonIso(edm::Event &iEvent,
 }
 
 //define this as a plug-in
-DEFINE_FWK_MODULE(ProducerTest);
+DEFINE_FWK_MODULE(PUPPILeptonIsoProducer);
