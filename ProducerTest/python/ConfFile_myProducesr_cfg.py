@@ -14,25 +14,83 @@ process.source = cms.Source("PoolSource",
 )
 
 
-# -- PF-Weighted
-from CommonTools.ParticleFlow.ParticleSelectors.pfAllChargedHadrons_cfi import *
-from CommonTools.ParticleFlow.ParticleSelectors.pfAllNeutralHadrons_cfi import *
-from CommonTools.ParticleFlow.ParticleSelectors.pfAllPhotons_cfi import *
-#process.load('CommonTools.ParticleFlow.deltaBetaWeights_cff')
+#PF-Weighted Candidates
+## PF ChargedParticles
+process.pfAllChargedParticles = cms.EDFilter("CandPtrSelector",
+    src = cms.InputTag("packedPFCandidates"),
+    cut = cms.string(
+        '''
+        charge!=0 && fromPV
+        '''
+    )
+)
+## PF Pileup ChargedParticles
+process.pfPileUpAllChargedParticles = cms.EDFilter("CandPtrSelector",
+    src = cms.InputTag("packedPFCandidates"),
+    cut = cms.string(
+        '''
+        charge!=0 && !fromPV
+        '''
+    )
+)
 
-## PUPPI weights ###
+
+## PF Photons
+process.pfAllPhotons = cms.EDFilter("CandPtrSelector", 
+                                    src = cms.InputTag("slimmedPhotons"), 
+                                    cut = cms.string("pt>0.5 && pdgId==22"),
+                                    filter = cms.bool(True)
+                                    )
+
+## PF NeutralHadrons
+process.pfAllNeutralHadrons = cms.EDFilter("CandPtrSelector",
+    src = cms.InputTag("packedPFCandidates"),
+    cut = cms.string(
+        ''' 
+        pt>0.5 && charge==0 && !pdgId==22
+        '''
+    )
+)
+
+process.PFSequence = cms.Sequence(process.pfAllChargedParticles+process.pfPileUpAllChargedParticles+process.pfAllPhotons+process.pfAllNeutralHadrons)
+
+## PF weights
+from CommonTools.ParticleFlow.deltaBetaWeights_cfi import *
+process.pfWeightedPhotons = pfWeightedPhotons.clone()
+process.pfWeightedPhotons.src  =  cms.InputTag('pfAllPhotons')
+process.pfWeightedPhotons.chargedFromPV  = cms.InputTag('pfAllChargedParticles')
+process.pfWeightedPhotons.chargedFromPU  = cms.InputTag("pfPileUpAllChargedParticles")
+
+process.pfWeightedNeutralHadrons = pfWeightedNeutralHadrons.clone()
+process.pfWeightedNeutralHadrons.src  = cms.InputTag("pfAllNeutralHadrons")
+process.pfWeightedNeutralHadrons.chargedFromPV  = cms.InputTag("pfAllChargedParticles")
+process.pfWeightedNeutralHadrons.chargedFromPU  = cms.InputTag("pfPileUpAllChargedParticles")
+
+process.pfDeltaBetaWeightingSequence = cms.Sequence(process.pfWeightedPhotons*process.pfWeightedNeutralHadrons)
+
+# PUPPI weights
 from CommonTools.PileupAlgos.Puppi_cff import puppi
 process.puppi = puppi.clone()
 process.puppi.candName=cms.InputTag("packedPFCandidates")
 process.puppi.vertexName=cms.InputTag("offlineSlimmedPrimaryVertices")
 process.puppiSequence = cms.Sequence(process.puppi)
 
+
 process.myProducerLabel = cms.EDProducer('PUPPILeptonIsoProducer',
     electrons = cms.InputTag("slimmedElectrons"),
     muons = cms.InputTag("slimmedMuons"),
-    jets = cms.InputTag("slimmedJets"),
     pfCands = cms.InputTag("packedPFCandidates"),
     puppi = cms.InputTag("puppi", "PuppiWeights")                                     
+)
+
+
+
+process.myProducerLabel1 = cms.EDProducer('PFWeightedLeptonIsoProducer',
+    electrons = cms.InputTag("slimmedElectrons"),
+    muons = cms.InputTag("slimmedMuons"),
+    pfCands = cms.InputTag("packedPFCandidates"),
+    pfWeightedHadrons = cms.InputTag("pfWeightedNeutralHadrons"),
+    pfWeightedPhotons =cms.InputTag("pfWeightedPhotons")
 )
 
 
@@ -41,6 +99,11 @@ process.out = cms.OutputModule("PoolOutputModule",
 )
 
   
-process.p = cms.Path(process.puppiSequence*process.myProducerLabel)
+process.p = cms.Path(process.PFSequence*
+                     process.pfDeltaBetaWeightingSequence*
+                     process.puppiSequence*
+                     process.myProducerLabel*
+                     process.myProducerLabel1
+                     )
 
 process.e = cms.EndPath(process.out)

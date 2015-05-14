@@ -1,9 +1,9 @@
 // -*- C++ -*-
 //
-// Package:    test/PUPPILeptonIsoProducer
-// Class:      PUPPILeptonIsoProducer
+// Package:    test/PFWeightedLeptonIsoProducer
+// Class:      PFWeightedLeptonIsoProducer
 // 
-/**\class PUPPILeptonIsoProducer PUPPILeptonIsoProducer.cc test/PUPPILeptonIsoProducer/plugins/PUPPILeptonIsoProducer.cc
+/**\class PFWeightedLeptonIsoProducer PFWeightedLeptonIsoProducer.cc test/PFWeightedLeptonIsoProducer/plugins/PFWeightedLeptonIsoProducer.cc
 
  Description: [one line class summary]
 
@@ -42,10 +42,10 @@
 // class declaration
 //
 
-class PUPPILeptonIsoProducer : public edm::EDProducer {
+class PFWeightedLeptonIsoProducer : public edm::EDProducer {
    public:
-      explicit PUPPILeptonIsoProducer(const edm::ParameterSet&);
-      ~PUPPILeptonIsoProducer();
+      explicit PFWeightedLeptonIsoProducer(const edm::ParameterSet&);
+      ~PFWeightedLeptonIsoProducer();
 
       static void fillDescriptions(edm::ConfigurationDescriptions& descriptions);
 
@@ -66,30 +66,32 @@ class PUPPILeptonIsoProducer : public edm::EDProducer {
       edm::EDGetTokenT<pat::MuonCollection> muonToken_;
       typedef edm::View<reco::Candidate> candidateView_;
       edm::EDGetTokenT< candidateView_ > pFCandidatesToken_;
-   
-      edm::EDGetTokenT<edm::ValueMap<float> > puppiToken_;
+      edm::EDGetTokenT< candidateView_ > pfWeightedNeutralHadronsToken_;
+      edm::EDGetTokenT< candidateView_ > pfWeightedPhotonsToken_;
+
 };
 
 
 //
 // constructors and destructor
 //
-PUPPILeptonIsoProducer::PUPPILeptonIsoProducer(const edm::ParameterSet& iConfig):
+PFWeightedLeptonIsoProducer::PFWeightedLeptonIsoProducer(const edm::ParameterSet& iConfig):
     electronToken_(consumes<pat::ElectronCollection>(iConfig.getParameter<edm::InputTag>("electrons"))),
     muonToken_(consumes<pat::MuonCollection>(iConfig.getParameter<edm::InputTag>("muons"))),
     pFCandidatesToken_(consumes<candidateView_>(iConfig.getParameter<edm::InputTag>("pfCands"))),
-    puppiToken_(consumes<edm::ValueMap<float> >(iConfig.getParameter<edm::InputTag>("puppi")))
+    pfWeightedNeutralHadronsToken_(consumes<candidateView_>(iConfig.getParameter<edm::InputTag>("pfWeightedHadrons"))),
+    pfWeightedPhotonsToken_(consumes<candidateView_>(iConfig.getParameter<edm::InputTag>("pfWeightedPhotons")))
 
 {
 
-  produces<edm::ValueMap<double> > ("MuonPuppiIso");
-  produces<edm::ValueMap<double> > ("ElectronPuppiIso");
+  produces<edm::ValueMap<double> > ("MuonPFWeightedIso");
+  produces<edm::ValueMap<double> > ("ElectronPFWeightedIso");
 
   
 }
 
 
-PUPPILeptonIsoProducer::~PUPPILeptonIsoProducer()
+PFWeightedLeptonIsoProducer::~PFWeightedLeptonIsoProducer()
 {
  
    // do anything here that needs to be done at desctruction time
@@ -104,7 +106,7 @@ PUPPILeptonIsoProducer::~PUPPILeptonIsoProducer()
 
 // ------------ method called to produce the data  ------------
 void
-PUPPILeptonIsoProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
+PFWeightedLeptonIsoProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 {
     //Handle Particle Collections for PUPPI isolation
     edm::Handle<pat::MuonCollection> muons;
@@ -113,14 +115,13 @@ PUPPILeptonIsoProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetu
     edm::Handle<pat::ElectronCollection> electrons;
     iEvent.getByToken(electronToken_, electrons);
     assert(electrons.isValid());
-    edm::Handle<candidateView_> pfs;
-    iEvent.getByToken(pFCandidatesToken_,pfs);
-    assert(pfs.isValid());
-
-    //Handle Value Map for PUPPI weights
-    edm::Handle<edm::ValueMap<float> > weights;
-    iEvent.getByToken(puppiToken_, weights); 
-    assert(weights.isValid());
+    edm::Handle<candidateView_> pfCharged;
+    iEvent.getByToken(pFCandidatesToken_,pfCharged);
+    assert(pfCharged.isValid());
+    edm::Handle<candidateView_> pfNU;
+    iEvent.getByToken(pfWeightedNeutralHadronsToken_,pfNU);
+    edm::Handle<candidateView_> pfPH;
+    iEvent.getByToken(pfWeightedPhotonsToken_,pfPH);
 
     std::vector<const reco::Candidate *> leptons;
 
@@ -140,34 +141,51 @@ PUPPILeptonIsoProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetu
 	  footprint.push_back(lep->sourceCandidatePtr(i));
 	}
 
-	// now loop on pf candidates
-	// one possible Way 
-    	//
-	for (unsigned int i = 0; i <  pfs->size(); ++i) {
-	  const pat::PackedCandidate *pf =  dynamic_cast<const pat::PackedCandidate*>(&pfs->at(i)); //check if const pat::PackedCandidate!=0 ?
+	// now loop on pf charged candidates
 
-	  edm::RefToBase<reco::Candidate>  pf_base_ref;
-	  pf_base_ref = pfs->refAt(i);
-	  float weight = (*weights)[pf_base_ref];
+	for (unsigned int i = 0; i <  pfCharged->size(); ++i) {
+	  const pat::PackedCandidate *pf =  dynamic_cast<const pat::PackedCandidate*>(&pfCharged->at(i)); //check if const pat::PackedCandidate!=0 ?
 
 	  if (deltaR(*pf,*lep) < 0.4) { //hardcoded!
 
 	    // pfcandidate-based footprint removal
-	    if (std::find(footprint.begin(), footprint.end(), reco::CandidatePtr(pfs,i)) != footprint.end()) {
+	    if (std::find(footprint.begin(), footprint.end(), reco::CandidatePtr(pfCharged,i)) != footprint.end()) {
 	      continue;
 	    }
 
-	    if (pf->charge() == 0) {
-	      if (pf->pdgId() == 22 && pf->pt() > 0.5) photons += weight*pf->pt();
-	      else
-		if (pf->pt() > 0.5) neutral += weight*pf->pt();
-	    } else {
-	      if (weight==1) charged += weight*pf->pt();
-	      
-	    }
-	  }	
+	    if (pf->charge() != 0 && pf->fromPV()>2) charged += pf->pt();
+	  }
 	}
-  
+	
+	// now loop on PF-weighted neutral candidates
+	for (unsigned int i = 0; i <  pfNU->size(); ++i) {
+	  const reco::PFCandidate *pf =  dynamic_cast<const reco::PFCandidate*>(&pfNU->at(i)); //check if const pat::PackedCandidate!=0 ?
+
+	  if (deltaR(*pf,*lep) < 0.4) { //hardcoded!
+
+	    // pfcandidate-based footprint removal
+	    if (std::find(footprint.begin(), footprint.end(), reco::CandidatePtr(pfNU,i)) != footprint.end()) {
+	      continue;
+	    }
+	    neutral += pf->pt();
+	  }
+	}
+
+	// now loop on PF-weighted photon candidates
+	for (unsigned int i = 0; i <  pfPH->size(); ++i) {
+	  const reco::PFCandidate *pf =  dynamic_cast<const reco::PFCandidate*>(&pfPH->at(i)); //check if const pat::PackedCandidate!=0 ?
+
+	  if (deltaR(*pf,*lep) < 0.4) { //hardcoded!
+
+	    // pfcandidate-based footprint removal
+	    if (std::find(footprint.begin(), footprint.end(), reco::CandidatePtr(pfPH,i)) != footprint.end()) {
+	      continue;
+	    }
+	    photons += pf->pt();
+	  }
+	}
+
+	
 	double rel_iso = (charged + neutral + photons)/lep->pt();
 	if (abs(lep->pdgId())==13) muon_isolation.push_back(rel_iso);
 	else if (abs(lep->pdgId())==11) electron_isolation.push_back(rel_iso);
@@ -179,26 +197,26 @@ PUPPILeptonIsoProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetu
     }
 
     if(!muon_isolation.empty())
-      storeLeptonIso(iEvent, muons, muon_isolation,  "MuonPuppiIso");
+      storeLeptonIso(iEvent, muons, muon_isolation,  "MuonPFWeightedIso");
     if(!electron_isolation.empty())
-      storeLeptonIso(iEvent, electrons, electron_isolation, "ElectronPuppiIso");
+      storeLeptonIso(iEvent, electrons, electron_isolation, "ElectronPFWeightedIso");
 
 }
 
 // ------------ method called once each job just before starting event loop  ------------
 void 
-PUPPILeptonIsoProducer::beginJob()
+PFWeightedLeptonIsoProducer::beginJob()
 {
 }
 
 // ------------ method called once each job just after ending the event loop  ------------
 void 
-PUPPILeptonIsoProducer::endJob() {
+PFWeightedLeptonIsoProducer::endJob() {
 }
 
 // ------------ method fills 'descriptions' with the allowed parameters for the module  ------------
 void
-PUPPILeptonIsoProducer::fillDescriptions(edm::ConfigurationDescriptions& descriptions) {
+PFWeightedLeptonIsoProducer::fillDescriptions(edm::ConfigurationDescriptions& descriptions) {
   //The following says we do not know what parameters are allowed so do no validation
   // Please change this to state exactly what you do use, even if it is no parameters
   edm::ParameterSetDescription desc;
@@ -209,7 +227,7 @@ PUPPILeptonIsoProducer::fillDescriptions(edm::ConfigurationDescriptions& descrip
 
 template<class Hand, typename T>
 void
-PUPPILeptonIsoProducer:: storeLeptonIso(edm::Event &iEvent,
+PFWeightedLeptonIsoProducer:: storeLeptonIso(edm::Event &iEvent,
 			    const edm::Handle<Hand > & handle,
 			    const std::vector<T> & values,
 			    const std::string    & label) const {
@@ -225,4 +243,4 @@ PUPPILeptonIsoProducer:: storeLeptonIso(edm::Event &iEvent,
 }
 
 //define this as a plug-in
-DEFINE_FWK_MODULE(PUPPILeptonIsoProducer);
+DEFINE_FWK_MODULE(PFWeightedLeptonIsoProducer);
