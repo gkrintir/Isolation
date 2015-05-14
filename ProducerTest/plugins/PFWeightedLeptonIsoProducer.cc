@@ -68,6 +68,9 @@ class PFWeightedLeptonIsoProducer : public edm::EDProducer {
       edm::EDGetTokenT< candidateView_ > pFCandidatesToken_;
       edm::EDGetTokenT< candidateView_ > pfWeightedNeutralHadronsToken_;
       edm::EDGetTokenT< candidateView_ > pfWeightedPhotonsToken_;
+   
+      float dRConeSize_;
+  
 
 };
 
@@ -83,6 +86,8 @@ PFWeightedLeptonIsoProducer::PFWeightedLeptonIsoProducer(const edm::ParameterSet
     pfWeightedPhotonsToken_(consumes<candidateView_>(iConfig.getParameter<edm::InputTag>("pfWeightedPhotons")))
 
 {
+
+  dRConeSize_  = iConfig.getUntrackedParameter<double>("dRConeSize");
 
   produces<edm::ValueMap<double> > ("MuonPFWeightedIso");
   produces<edm::ValueMap<double> > ("ElectronPFWeightedIso");
@@ -146,7 +151,7 @@ PFWeightedLeptonIsoProducer::produce(edm::Event& iEvent, const edm::EventSetup& 
 	for (unsigned int i = 0; i <  pfCharged->size(); ++i) {
 	  const pat::PackedCandidate *pf =  dynamic_cast<const pat::PackedCandidate*>(&pfCharged->at(i)); //check if const pat::PackedCandidate!=0 ?
 
-	  if (deltaR(*pf,*lep) < 0.4) { //hardcoded!
+	  if (deltaR(*pf,*lep) < dRConeSize_) { //hardcoded!
 
 	    // pfcandidate-based footprint removal
 	    if (std::find(footprint.begin(), footprint.end(), reco::CandidatePtr(pfCharged,i)) != footprint.end()) {
@@ -161,7 +166,7 @@ PFWeightedLeptonIsoProducer::produce(edm::Event& iEvent, const edm::EventSetup& 
 	for (unsigned int i = 0; i <  pfNU->size(); ++i) {
 	  const reco::PFCandidate *pf =  dynamic_cast<const reco::PFCandidate*>(&pfNU->at(i)); //check if const pat::PackedCandidate!=0 ?
 
-	  if (deltaR(*pf,*lep) < 0.4) { //hardcoded!
+	  if (deltaR(*pf,*lep) < dRConeSize_) { //hardcoded!
 
 	    // pfcandidate-based footprint removal
 	    if (std::find(footprint.begin(), footprint.end(), reco::CandidatePtr(pfNU,i)) != footprint.end()) {
@@ -175,8 +180,7 @@ PFWeightedLeptonIsoProducer::produce(edm::Event& iEvent, const edm::EventSetup& 
 	for (unsigned int i = 0; i <  pfPH->size(); ++i) {
 	  const reco::PFCandidate *pf =  dynamic_cast<const reco::PFCandidate*>(&pfPH->at(i)); //check if const pat::PackedCandidate!=0 ?
 
-	  if (deltaR(*pf,*lep) < 0.4) { //hardcoded!
-
+	  if (deltaR(*pf,*lep) < dRConeSize_) { //hardcoded!
 	    // pfcandidate-based footprint removal
 	    if (std::find(footprint.begin(), footprint.end(), reco::CandidatePtr(pfPH,i)) != footprint.end()) {
 	      continue;
@@ -190,9 +194,6 @@ PFWeightedLeptonIsoProducer::produce(edm::Event& iEvent, const edm::EventSetup& 
 	if (abs(lep->pdgId())==13) muon_isolation.push_back(rel_iso);
 	else if (abs(lep->pdgId())==11) electron_isolation.push_back(rel_iso);
 
-        printf("%-8s of pt %6.1f, eta %+4.2f: relIso = %5.2f\n",
-	       abs(lep->pdgId())==13 ? "muon" : "electron",
-	       lep->pt(), lep->eta(), rel_iso);
 	
     }
 

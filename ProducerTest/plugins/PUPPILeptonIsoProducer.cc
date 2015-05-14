@@ -68,6 +68,8 @@ class PUPPILeptonIsoProducer : public edm::EDProducer {
       edm::EDGetTokenT< candidateView_ > pFCandidatesToken_;
    
       edm::EDGetTokenT<edm::ValueMap<float> > puppiToken_;
+
+      float dRConeSize_;
 };
 
 
@@ -81,6 +83,8 @@ PUPPILeptonIsoProducer::PUPPILeptonIsoProducer(const edm::ParameterSet& iConfig)
     puppiToken_(consumes<edm::ValueMap<float> >(iConfig.getParameter<edm::InputTag>("puppi")))
 
 {
+
+  dRConeSize_  = iConfig.getUntrackedParameter<double>("dRConeSize");
 
   produces<edm::ValueMap<double> > ("MuonPuppiIso");
   produces<edm::ValueMap<double> > ("ElectronPuppiIso");
@@ -150,8 +154,7 @@ PUPPILeptonIsoProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetu
 	  pf_base_ref = pfs->refAt(i);
 	  float weight = (*weights)[pf_base_ref];
 
-	  if (deltaR(*pf,*lep) < 0.4) { //hardcoded!
-
+	  if (deltaR(*pf,*lep) < dRConeSize_) { //hardcoded!
 	    // pfcandidate-based footprint removal
 	    if (std::find(footprint.begin(), footprint.end(), reco::CandidatePtr(pfs,i)) != footprint.end()) {
 	      continue;
@@ -172,9 +175,6 @@ PUPPILeptonIsoProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetu
 	if (abs(lep->pdgId())==13) muon_isolation.push_back(rel_iso);
 	else if (abs(lep->pdgId())==11) electron_isolation.push_back(rel_iso);
 
-        printf("%-8s of pt %6.1f, eta %+4.2f: relIso = %5.2f\n",
-	       abs(lep->pdgId())==13 ? "muon" : "electron",
-	       lep->pt(), lep->eta(), rel_iso);
 	
     }
 

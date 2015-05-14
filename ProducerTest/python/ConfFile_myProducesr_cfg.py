@@ -80,7 +80,8 @@ process.myProducerLabel = cms.EDProducer('PUPPILeptonIsoProducer',
     electrons = cms.InputTag("slimmedElectrons"),
     muons = cms.InputTag("slimmedMuons"),
     pfCands = cms.InputTag("packedPFCandidates"),
-    puppi = cms.InputTag("puppi", "PuppiWeights")                                     
+    puppi = cms.InputTag("puppi", "PuppiWeights"),
+    dRConeSize = cms.untracked.double(0.4)
 )
 
 
@@ -90,7 +91,8 @@ process.myProducerLabel1 = cms.EDProducer('PFWeightedLeptonIsoProducer',
     muons = cms.InputTag("slimmedMuons"),
     pfCands = cms.InputTag("packedPFCandidates"),
     pfWeightedHadrons = cms.InputTag("pfWeightedNeutralHadrons"),
-    pfWeightedPhotons =cms.InputTag("pfWeightedPhotons")
+    pfWeightedPhotons =cms.InputTag("pfWeightedPhotons"),
+    dRConeSize = cms.untracked.double(0.4)
 )
 
 
