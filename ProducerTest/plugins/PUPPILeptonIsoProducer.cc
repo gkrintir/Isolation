@@ -154,7 +154,7 @@ PUPPILeptonIsoProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetu
 	  pf_base_ref = pfs->refAt(i);
 	  float weight = (*weights)[pf_base_ref];
 
-	  if (deltaR(*pf,*lep) < dRConeSize_) { //hardcoded!
+	  if (deltaR(*pf,*lep) < dRConeSize_) { 
 	    // pfcandidate-based footprint removal
 	    if (std::find(footprint.begin(), footprint.end(), reco::CandidatePtr(pfs,i)) != footprint.end()) {
 	      continue;

@@ -151,7 +151,7 @@ PFWeightedLeptonIsoProducer::produce(edm::Event& iEvent, const edm::EventSetup& 
 	for (unsigned int i = 0; i <  pfCharged->size(); ++i) {
 	  const pat::PackedCandidate *pf =  dynamic_cast<const pat::PackedCandidate*>(&pfCharged->at(i)); //check if const pat::PackedCandidate!=0 ?
 
-	  if (deltaR(*pf,*lep) < dRConeSize_) { //hardcoded!
+	  if (deltaR(*pf,*lep) < dRConeSize_) { 
 
 	    // pfcandidate-based footprint removal
 	    if (std::find(footprint.begin(), footprint.end(), reco::CandidatePtr(pfCharged,i)) != footprint.end()) {
@@ -166,7 +166,7 @@ PFWeightedLeptonIsoProducer::produce(edm::Event& iEvent, const edm::EventSetup& 
 	for (unsigned int i = 0; i <  pfNU->size(); ++i) {
 	  const reco::PFCandidate *pf =  dynamic_cast<const reco::PFCandidate*>(&pfNU->at(i)); //check if const pat::PackedCandidate!=0 ?
 
-	  if (deltaR(*pf,*lep) < dRConeSize_) { //hardcoded!
+	  if (deltaR(*pf,*lep) < dRConeSize_) { 
 
 	    // pfcandidate-based footprint removal
 	    if (std::find(footprint.begin(), footprint.end(), reco::CandidatePtr(pfNU,i)) != footprint.end()) {
@@ -180,7 +180,7 @@ PFWeightedLeptonIsoProducer::produce(edm::Event& iEvent, const edm::EventSetup& 
 	for (unsigned int i = 0; i <  pfPH->size(); ++i) {
 	  const reco::PFCandidate *pf =  dynamic_cast<const reco::PFCandidate*>(&pfPH->at(i)); //check if const pat::PackedCandidate!=0 ?
 
-	  if (deltaR(*pf,*lep) < dRConeSize_) { //hardcoded!
+	  if (deltaR(*pf,*lep) < dRConeSize_) { 
 	    // pfcandidate-based footprint removal
 	    if (std::find(footprint.begin(), footprint.end(), reco::CandidatePtr(pfPH,i)) != footprint.end()) {
 	      continue;
