@@ -92,7 +92,9 @@ process.myProducerLabel1 = cms.EDProducer('PUPPILeptonIsoProducer_Matthias',
     leptons = cms.InputTag("slimmedMuons"),
     pfCands = cms.InputTag("packedPFCandidates"),
     puppi = cms.InputTag("puppi", "PuppiWeights"),
-    dRConeSize = cms.untracked.double(0.4)
+    dRConeSize = cms.untracked.double(0.4),
+    writeCandidateSums = cms.untracked.bool(False),
+    includeLeptoninIso = cms.untracked.bool(False)
 )
 
 process.myProducerLabel2 = cms.EDProducer('PFWeightedLeptonIsoProducer',
