@@ -4,7 +4,7 @@ process = cms.Process("OWNPARTICLES")
 
 process.load("FWCore.MessageService.MessageLogger_cfi")
 
-process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(-1) )
+process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(1000) )
 
 process.source = cms.Source("PoolSource",
     # replace 'myfile.root' with the source file you want to use
@@ -88,14 +88,20 @@ process.myProducerLabel = cms.EDProducer('PUPPILeptonIsoProducer',
 )
 
 
+process.myProducerLabel1 = cms.EDProducer('PUPPILeptonIsoProducer_Matthias',
+    leptons = cms.InputTag("slimmedMuons"),
+    pfCands = cms.InputTag("packedPFCandidates"),
+    puppi = cms.InputTag("puppi", "PuppiWeights"),
+    dRConeSize = cms.untracked.double(0.4)
+)
 
-process.myProducerLabel1 = cms.EDProducer('PFWeightedLeptonIsoProducer',
+process.myProducerLabel2 = cms.EDProducer('PFWeightedLeptonIsoProducer',
     electrons = cms.InputTag("slimmedElectrons"),
     muons = cms.InputTag("slimmedMuons"),
     pfCands = cms.InputTag("packedPFCandidates"),
     pfWeightedHadrons = cms.InputTag("pfWeightedNeutralHadrons"),
     pfWeightedPhotons =cms.InputTag("pfWeightedPhotons"),
-    dRConeSize = cms.untracked.double(0.4),
+    dRConeSize = cms.untracked.double(0.4)
 )
 
 
@@ -108,7 +114,8 @@ process.p = cms.Path(process.PFSequence*
                      process.pfDeltaBetaWeightingSequence*
                      process.puppiSequence*
                      process.myProducerLabel*
-                     process.myProducerLabel1
+                     process.myProducerLabel1*
+                     process.myProducerLabel2
                      )
 
 process.e = cms.EndPath(process.out)
