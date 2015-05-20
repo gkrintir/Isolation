@@ -55,11 +55,11 @@ class PUPPILeptonIsoProducer : public edm::EDProducer {
       virtual void endJob() override;
   
       template<class Hand, typename T>
-      void storeLeptonIso(edm::Event &iEvent,
+      void storeLeptonIsoInfo(edm::Event &iEvent,
 			const edm::Handle<Hand > & handle, 
 			const std::vector<T> & values,
 			const std::string    & label) const ;
-
+  
 
       // ----------member data ---------------------------
       edm::EDGetTokenT<pat::ElectronCollection> electronToken_;
@@ -68,8 +68,11 @@ class PUPPILeptonIsoProducer : public edm::EDProducer {
       edm::EDGetTokenT< candidateView_ > pFCandidatesToken_;
    
       edm::EDGetTokenT<edm::ValueMap<float> > puppiToken_;
-
+  
       float dRConeSize_;
+      
+      bool writeCandidateSums_;
+      bool includeLeptoninIso_;
 };
 
 
@@ -80,16 +83,33 @@ PUPPILeptonIsoProducer::PUPPILeptonIsoProducer(const edm::ParameterSet& iConfig)
     electronToken_(consumes<pat::ElectronCollection>(iConfig.getParameter<edm::InputTag>("electrons"))),
     muonToken_(consumes<pat::MuonCollection>(iConfig.getParameter<edm::InputTag>("muons"))),
     pFCandidatesToken_(consumes<candidateView_>(iConfig.getParameter<edm::InputTag>("pfCands"))),
-    puppiToken_(consumes<edm::ValueMap<float> >(iConfig.getParameter<edm::InputTag>("puppi")))
+    puppiToken_(consumes<edm::ValueMap<float> >(iConfig.getParameter<edm::InputTag>("puppi"))), 
+    dRConeSize_(0.4),
+    writeCandidateSums_(false),
+    includeLeptoninIso_(false)
 
 {
 
   dRConeSize_  = iConfig.getUntrackedParameter<double>("dRConeSize");
-
+  
   produces<edm::ValueMap<double> > ("MuonPuppiIso");
   produces<edm::ValueMap<double> > ("ElectronPuppiIso");
-
   
+  writeCandidateSums_ = iConfig.getUntrackedParameter<bool>("writeCandidateSums");
+  if (writeCandidateSums_) {
+    //Candidates for building PUPPI isolation for muons
+    produces<edm::ValueMap<double> > ("sumChargedHadronPtInMuonPuppiIso");
+    produces<edm::ValueMap<double> > ("sumNeutralHadronEtInMuonPuppiIso");
+    produces<edm::ValueMap<double> > ("sumPhotoEtInMuonPuppiIso");
+  
+    //Candidates for building PUPPI isolation for electrons
+    produces<edm::ValueMap<double> > ("sumChargedHadronPtInElectronPuppiIso");
+    produces<edm::ValueMap<double> > ("sumNeutralHadronEtInElectronPuppiIso");
+    produces<edm::ValueMap<double> > ("sumPhotoEtInElectronPuppiIso");
+    
+  }
+
+  includeLeptoninIso_ = iConfig.getUntrackedParameter<bool>("includeLeptoninIso");
 }
 
 
@@ -134,6 +154,15 @@ PUPPILeptonIsoProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetu
     std::vector<double>  muon_isolation;
     std::vector<double>  electron_isolation;
 
+    std::vector<double> sumChargedHadronPt_in_MuonPuppiIso;
+    std::vector<double> sumNeutralHadronPt_in_MuonPuppiIso;
+    std::vector<double> sumPhotoEt_in_MuonPuppiIso;
+    
+    std::vector<double> sumChargedHadronPt_in_ElectronPuppiIso;
+    std::vector<double> sumNeutralHadronPt_in_ElectronPuppiIso;
+    std::vector<double> sumPhotoEt_in_ElectronPuppiIso;
+
+
     for (const reco::Candidate *lep : leptons) {
         // initialize sums
         float charged = 0, neutral = 0, photons  = 0;
@@ -156,14 +185,16 @@ PUPPILeptonIsoProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetu
 
 	  if (deltaR(*pf,*lep) < dRConeSize_) { 
 	    // pfcandidate-based footprint removal
-	    if (std::find(footprint.begin(), footprint.end(), reco::CandidatePtr(pfs,i)) != footprint.end()) {
-	      continue;
+	    if (!includeLeptoninIso_) {
+	      if (std::find(footprint.begin(), footprint.end(), reco::CandidatePtr(pfs,i)) != footprint.end()) {
+		continue;
+	      }
 	    }
 
 	    if (pf->charge() == 0) {
-	      if (pf->pdgId() == 22 && pf->pt() > 0.5) photons += weight*pf->pt();
+	      if (pf->pdgId() == 22 && pf->pt() > 0.5) photons += weight*pf->et();
 	      else
-		if (pf->pt() > 0.5) neutral += weight*pf->pt();
+		if (pf->pt() > 0.5) neutral += weight*pf->et();
 	    } else {
 	      if (weight==1) charged += weight*pf->pt();
 	      
@@ -172,17 +203,42 @@ PUPPILeptonIsoProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetu
 	}
   
 	double rel_iso = (charged + neutral + photons)/lep->pt();
-	if (abs(lep->pdgId())==13) muon_isolation.push_back(rel_iso);
-	else if (abs(lep->pdgId())==11) electron_isolation.push_back(rel_iso);
-
+	if (abs(lep->pdgId())==13) {
+	  muon_isolation.push_back(rel_iso);
+	  if  (writeCandidateSums_) {
+	    sumChargedHadronPt_in_MuonPuppiIso.push_back(charged);
+	    sumNeutralHadronPt_in_MuonPuppiIso.push_back(neutral);
+	    sumPhotoEt_in_MuonPuppiIso.push_back(photons);
+	  }
+	}
+	else if (abs(lep->pdgId())==11) {
+	  electron_isolation.push_back(rel_iso);
+	  if  (writeCandidateSums_) {
+	    sumChargedHadronPt_in_ElectronPuppiIso.push_back(charged);
+	    sumNeutralHadronPt_in_ElectronPuppiIso.push_back(neutral);
+	    sumPhotoEt_in_ElectronPuppiIso.push_back(photons);
+	  }
+	}
 	
     }
 
-    if(!muon_isolation.empty())
-      storeLeptonIso(iEvent, muons, muon_isolation,  "MuonPuppiIso");
-    if(!electron_isolation.empty())
-      storeLeptonIso(iEvent, electrons, electron_isolation, "ElectronPuppiIso");
-
+    if (!muon_isolation.empty()) {
+      storeLeptonIsoInfo(iEvent, muons, muon_isolation,  "MuonPuppiIso");
+      if (writeCandidateSums_){
+	 storeLeptonIsoInfo(iEvent, muons, sumChargedHadronPt_in_MuonPuppiIso,  "sumChargedHadronPtInMuonPuppiIso");
+	 storeLeptonIsoInfo(iEvent, muons, sumNeutralHadronPt_in_MuonPuppiIso,  "sumNeutralHadronEtInMuonPuppiIso");
+	 storeLeptonIsoInfo(iEvent, muons, sumPhotoEt_in_MuonPuppiIso,  "sumPhotoEtInMuonPuppiIso");
+      }
+    }
+    if (!electron_isolation.empty()) {
+      storeLeptonIsoInfo(iEvent, electrons, electron_isolation, "ElectronPuppiIso");
+      if (writeCandidateSums_){
+	 storeLeptonIsoInfo(iEvent, electrons, sumChargedHadronPt_in_ElectronPuppiIso,  "sumChargedHadronPtInElectronPuppiIso");
+	 storeLeptonIsoInfo(iEvent, electrons, sumNeutralHadronPt_in_ElectronPuppiIso,  "sumNeutralHadronEtInElectronPuppiIso");
+	 storeLeptonIsoInfo(iEvent, electrons, sumPhotoEt_in_ElectronPuppiIso,  "sumPhotoEtInElectronPuppiIso");
+      }
+    }
+    
 }
 
 // ------------ method called once each job just before starting event loop  ------------
@@ -209,7 +265,7 @@ PUPPILeptonIsoProducer::fillDescriptions(edm::ConfigurationDescriptions& descrip
 
 template<class Hand, typename T>
 void
-PUPPILeptonIsoProducer:: storeLeptonIso(edm::Event &iEvent,
+PUPPILeptonIsoProducer:: storeLeptonIsoInfo(edm::Event &iEvent,
 			    const edm::Handle<Hand > & handle,
 			    const std::vector<T> & values,
 			    const std::string    & label) const {
