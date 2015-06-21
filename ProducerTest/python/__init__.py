@@ -1,3 +1,3 @@
 #Automatically created by SCRAM
 import os
-__path__.append(os.path.dirname(os.path.abspath(__file__).rsplit('/test/ProducerTest/',1)[0])+'/cfipython/slc6_amd64_gcc481/test/ProducerTest')
+__path__.append(os.path.dirname(os.path.abspath(__file__).rsplit('/Isolation/ProducerTest/',1)[0])+'/cfipython/slc6_amd64_gcc491/Isolation/ProducerTest')
