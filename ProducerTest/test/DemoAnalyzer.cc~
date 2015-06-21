@@ -1,0 +1,563 @@
+// -*- C++ -*-
+//
+// Package:    Analyzer/DemoAnalyzer
+// Class:      DemoAnalyzer
+// 
+/**\class DemoAnalyzer DemoAnalyzer.cc Analyzer/DemoAnalyzer/plugins/DemoAnalyzer.cc
+
+ Description: [one line class summary]
+
+ Implementation:
+     [Notes on implementation]
+*/
+//
+// Original Author:  Georgios Krintiras
+//         Created:  Fri, 13 Mar 2015 11:02:38 GMT
+//
+//
+
+
+// system include files
+#include <memory>
+
+// user include files
+#include "FWCore/Framework/interface/Frameworkfwd.h"
+#include "FWCore/Framework/interface/EDAnalyzer.h"
+#include "FWCore/Framework/interface/ESHandle.h"
+#include "FWCore/ServiceRegistry/interface/Service.h"
+#include "FWCore/Framework/interface/Event.h"
+#include "FWCore/Framework/interface/MakerMacros.h"
+#include "FWCore/MessageLogger/interface/MessageLogger.h"
+
+#include "FWCore/ParameterSet/interface/ParameterSet.h"
+
+#include "DataFormats/TrackReco/interface/Track.h"
+#include "DataFormats/TrackReco/interface/TrackFwd.h"
+#include "DataFormats/TrackerCommon/interface/TrackerTopology.h"
+#include "DataFormats/HepMCCandidate/interface/GenParticle.h"
+
+#include "CommonTools/UtilAlgos/interface/TFileService.h"
+
+#include "TH2.h"
+#include "TString.h"
+#include "math.h"
+//
+// class declaration
+//
+
+class DemoAnalyzer : public edm::EDAnalyzer {
+   public:
+      explicit DemoAnalyzer(const edm::ParameterSet&);
+      ~DemoAnalyzer();
+
+      static void fillDescriptions(edm::ConfigurationDescriptions& descriptions);
+
+
+   private:
+      virtual void beginJob() override;
+      virtual void analyze(const edm::Event&, const edm::EventSetup&) override;
+      virtual void endJob() override;
+
+      //virtual void beginRun(edm::Run const&, edm::EventSetup const&) override;
+      //virtual void endRun(edm::Run const&, edm::EventSetup const&) override;
+      //virtual void beginLuminosityBlock(edm::LuminosityBlock const&, edm::EventSetup const&) override;
+      //virtual void endLuminosityBlock(edm::LuminosityBlock const&, edm::EventSetup const&) override;
+      // ----------member data ---------------------------
+      edm::InputTag simHitsTag_;
+
+
+      edm::Service<TFileService> fs_;
+      //Funtions
+      void bookHistos();
+      void bookEnergyLosses1D( std::vector<TH1F*>&, int nBins, float range, const TString &det, unsigned int nHistos );
+      void bookEnergyLosses2D( std::vector<TH2F*>&, 
+			       int nBinsX, float rangeX,  int nBinsY, float rangeY, 
+			       const TString &var, const TString &det, unsigned int nHistos );
+      //void fillHistos( unsigned int rawid ,TH1F*& hist_det_dedx, const TrackerTopology *tTopo)
+      // Histograms      
+
+      TH1F * h_track_pt_;
+      TH1F* h_hit_pt_entry_;
+      TH1I* h_hit_pixel_layers_;
+      TH2F* h_hit_pixelbarrel_map_;
+      TH2F* h_hit_track_map_size_;
+      TH2F* h_hit_track_map_id_;
+      TH2F* h_hit_loss_track_pt_;
+      TH2F* h_track_id_track_pt_;
+  
+
+      // Detectors
+      //Pixel Barrel - 3 different detectors
+      static const unsigned int nHistos_pxb_ = 3;
+      std::vector<TH1F*> histos_pxb_dedx_;
+      std::vector<TH2F*> histos_PDG_pxb_dedx_;
+      std::vector<TH2F*> histos_PDG_pxb_dx_;
+      std::vector<TH2F*> histos_pT_pxb_dedx_;
+      //Pixel Endcap - 2 different detectors
+      static const unsigned int nHistos_pxf_ = 2;
+      std::vector<TH1F*> histos_pxf_dedx_;
+      std::vector<TH2F*> histos_PDG_pxf_dedx_;
+      std::vector<TH2F*> histos_PDG_pxf_dx_;
+      // TIB - 4 different detectors
+      static const unsigned int nHistos_TIB_ = 4;
+      std::vector<TH1F*> histos_TIB_dedx_;
+      std::vector<TH2F*> histos_PDG_TIB_dedx_;
+      std::vector<TH2F*> histos_PDG_TIB_dx_;
+      //TOB - 6 different detectors
+      static const unsigned int nHistos_TOB_ = 6;
+      std::vector<TH1F*> histos_TOB_dedx_;
+      std::vector<TH2F*> histos_PDG_TOB_dedx_;
+      std::vector<TH2F*> histos_PDG_TOB_dx_;
+      // TID - 3 different detectors
+      static const unsigned int nHistos_TID_ = 3;
+      std::vector<TH1F*> histos_TID_dedx_;
+      std::vector<TH2F*> histos_PDG_TID_dedx_;
+      std::vector<TH2F*> histos_PDG_TID_dx_;
+      // TEC - 9 different detectors
+      static const unsigned int nHistos_TEC_ = 9;
+      std::vector<TH1F*> histos_TEC_dedx_;
+      std::vector<TH2F*> histos_PDG_TEC_dedx_;
+      std::vector<TH2F*> histos_PDG_TEC_dx_;
+      
+      // PSimHits
+      std::vector<edm::InputTag> trackerContainers_;
+      //
+  
+  /*
+  unsigned int nAlphaBarrel, nBetaBarrel, nAlphaForward, nBetaForward;
+  // resolution bins
+  double resAlphaBarrel_binMin , resAlphaBarrel_binWidth;
+  unsigned int resAlphaBarrel_binN;
+  double resBetaBarrel_binMin  , resBetaBarrel_binWidth;
+  unsigned int resBetaBarrel_binN;
+  double resAlphaForward_binMin , resAlphaForward_binWidth;
+  unsigned int resAlphaForward_binN;
+  double resBetaForward_binMin  , resBetaForward_binWidth;
+  unsigned int resBetaForward_binN;
+  //
+  // ROOT files with nominal distributions
+  std::string thePixelMultiplicityFileName;
+  std::string thePixelBarrelResolutionFileName;
+  std::string thePixelForwardResolutionFileName;
+  TFile* thePixelMultiplicityFile;
+  TFile* thePixelBarrelResolutionFile;
+  TFile* thePixelForwardResolutionFile;
+  //
+  // internal vector: bins ; external vector: multiplicity
+  std::vector<TH1F*> histos_PXB_alpha;
+  std::vector<TH1F*> histos_PXB_beta;
+  std::vector<TH1F*> histos_PXF_alpha;
+  std::vector<TH1F*> histos_PXF_beta;
+  std::vector<TH1F*> histos_PXB_nom_alpha;
+  std::vector<TH1F*> histos_PXB_nom_beta;
+  std::vector<TH1F*> histos_PXF_nom_alpha;
+  std::vector<TH1F*> histos_PXF_nom_beta;
+   // energy losses
+  std::vector<TH1F*> histos_PXB_dedx_alpha;
+  std::vector<TH1F*> histos_PXB_dedx_beta;
+  std::vector<TH1F*> histos_PXF_dedx_alpha;
+  std::vector<TH1F*> histos_PXF_dedx_beta;
+  // resolutions
+  std::vector<TH1F*> histos_PXB_res_alpha;
+  std::vector<TH1F*> histos_PXB_res_beta;
+  std::vector<TH1F*> histos_PXF_res_alpha;
+  std::vector<TH1F*> histos_PXF_res_beta;
+  std::vector<TH1F*> histos_PXB_nom_res_alpha;
+  std::vector<TH1F*> histos_PXB_nom_res_beta;
+  std::vector<TH1F*> histos_PXF_nom_res_alpha;
+  std::vector<TH1F*> histos_PXF_nom_res_beta;
+  //*/  
+};
+
+//
+// constants, enums and typedefs
+//
+
+//
+// static data member definitions
+//
+
+//
+// constructors and destructor
+//
+DemoAnalyzer::DemoAnalyzer(const edm::ParameterSet& iConfig):
+
+
+  simHitsTag_("famosSimHits", "TrackerHits"),
+  
+  /*
+  simHitsTag1_low_("g4SimHits", "TrackerHitsPixelBarrelLowTof"),
+  simHitsTag1_high_("g4SimHits", "TrackerHitsPixelBarrelHighTof"),
+  simHitsTag2_low_("g4SimHits", "TrackerHitsPixelEndcapLowTof"), 
+  simHitsTag2_high_("g4SimHits", "TrackerHitsPixelEndcapHighTof"),
+  simHitsTag3_low_("g4SimHits", "TrackerHitsTECLowTof"), 
+  simHitsTag3_high_("g4SimHits", "TrackerHitsTECHighTof"),
+  simHitsTag4_low_("g4SimHits", "TrackerHitsTIBLowTof"), 
+  simHitsTag4_high_("g4SimHits", "TrackerHitsTIBHighTof"),
+  simHitsTag5_low_("g4SimHits", "TrackerHitsTIDLowTof"), 
+  simHitsTag5_high_("g4SimHits", "TrackerHitsTIDHighTof"),
+  simHitsTag6_low_("g4SimHits", "TrackerHitsTOBLowTof"), 
+  simHitsTag6_high_("g4SimHits", "TrackerHitsTOBHighTof"),
+  */
+  fs_()
+
+{
+   //now do what ever initialization is needed
+  using namespace edm;
+
+  h_track_pt_ = fs_->make<TH1F>("Track_Pt", "Track_Pt", 200, 0., 100.); //ok
+  h_hit_pt_entry_ = fs_->make<TH1F>("Sim_Pt_Entry", "Sim_Pt_Entry", 200, 0., 100.); //ok
+  h_hit_pixel_layers_    = fs_->make<TH1I>("Hits_pixellayers", "Hits_pixellayers", 5, 1, 6); //ok
+  h_hit_pixelbarrel_map_ = fs_->make<TH2F>("Hit_pixelbarrel", "Hit_pixelbarrel",
+					   240, -300., 300., 240, -140., 140.); 
+  h_hit_track_map_size_  = fs_->make<TH2F>("Hit_Track_Map_Size", "Hit_Track_Map_Size",
+					   2400, 0., 5000., 4800, 0., 10000.); //ok?
+  h_hit_track_map_id_    = fs_->make<TH2F>("Hit_Track_Map_ID", "Hit_Track_Map_ID",
+					   240, 0., 1000., 240, 0., 1000.); 
+  h_hit_loss_track_pt_   = fs_->make<TH2F>("Hit_Track_pT", "Hit_dedx_",
+					   240, 0., 100., 240, 0., .01);
+  
+  h_track_id_track_pt_ = fs_->make<TH2F>("Track_ID_Track_pT", "Track_ID_Track_pT",
+					 2400, 0., 100., 2*2212, 0., 2213.);
+
+
+  trackerContainers_.push_back(simHitsTag_);
+  /*
+  trackerContainers_.push_back(simHitsTag1_low_);
+  trackerContainers_.push_back(simHitsTag1_high_);
+  trackerContainers_.push_back(simHitsTag2_low_);
+  trackerContainers_.push_back(simHitsTag2_high_);
+  trackerContainers_.push_back(simHitsTag3_low_);
+  trackerContainers_.push_back(simHitsTag3_high_);
+  trackerContainers_.push_back(simHitsTag4_low_);
+  trackerContainers_.push_back(simHitsTag4_high_);
+  trackerContainers_.push_back(simHitsTag5_low_);
+  trackerContainers_.push_back(simHitsTag5_high_);
+  trackerContainers_.push_back(simHitsTag6_low_);
+  trackerContainers_.push_back(simHitsTag6_high_);
+  */
+
+  bookHistos();
+  
+}
+
+
+DemoAnalyzer::~DemoAnalyzer()
+{
+ 
+   // do anything here that needs to be done at desctruction time
+   // (e.g. close files, deallocate resources etc.)
+
+}
+
+
+//
+// member functions
+//
+
+// ------------ method called for each event  ------------
+void
+DemoAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
+{
+#ifdef rrDEBUG
+  std::cout << "Famos analysis" << std::endl;
+#endif
+  // get event and run number
+#ifdef rrDEBUG
+  int t_Run   = iEvent.id().run();
+  int t_Event = iEvent.id().event();
+  std::cout
+    << " #################################### Run " << t_Run 
+    << " Event "                                    << t_Event << " #################################### " 
+    << std::endl;
+#endif
+
+   using namespace edm;
+   
+   //generator level particles
+   Handle<reco::GenParticleCollection> genParticles;
+   iEvent.getByLabel("genParticles", genParticles);
+
+   edm::ESHandle < TrackerGeometry > TG;
+   iSetup.get<TrackerDigiGeometryRecord>().get(TG);
+   const TrackerGeometry *theTrackerGeometry = TG.product ();
+
+   // Retrieve tracker topology from geometry
+   ESHandle<TrackerTopology> tTopoHandle;
+   iSetup.get<IdealGeometryRecord>().get(tTopoHandle);
+   const TrackerTopology* const tTopo = tTopoHandle.product();
+
+   std::vector<Handle<PSimHitContainer> > theSimHitContainers;
+   iEvent.getManyByType(theSimHitContainers);
+   //std::cout << " The Number of sim Hits is  " << theSimHitContainers.size() <<std::endl;
+
+   
+
+   //Retrieve the Monte Carlo truth (SimTracks)
+   Handle<edm::SimTrackContainer> simTracksHandle;  
+   iEvent.getByLabel("famosSimHits",simTracksHandle);   
+   const SimTrackContainer simTracks = *(simTracksHandle.product());
+
+
+   Handle<std::vector<PSimHit> > simHitCollection;
+   //InputTag simHitsTag("famosSimHits", "TrackerHits");                                                                           
+   iEvent.getByLabel(simHitsTag_,  simHitCollection);
+   const std::vector<PSimHit>& simHits = *simHitCollection.product();
+
+   
+   if(simHitCollection.isValid()) {
+   
+     h_hit_track_map_size_ ->Fill(simHits.size(), simTracks.size());
+   for ( SimTrackContainer::const_iterator  simTrack = simTracks.begin(); simTrack != simTracks.end(); ++simTrack) {
+     //std::cout <<" genpartIndex = " << (*simTrack).genpartIndex()
+     //	       <<" type = " << (*simTrack).type()
+     //	       <<" simTrackId = " << (*simTrack).trackId()
+     //	       <<" simTrackpT = " << (*simTrack).momentum().pt()<<std::endl;
+
+     for( std::vector<PSimHit>::const_iterator Hits=simHits.begin(); Hits!=simHits.end(); ++Hits)
+       //   if((*simTrack).momentum().pt()<0.01 && (*Hits).trackId()== (*simTrack).trackId())h_track_pt_->Fill((*simTrack).momentum().pt());
+       if((*Hits).trackId() == (*simTrack).trackId()) {
+	 h_track_pt_->Fill((*simTrack).momentum().pt());
+	 h_hit_pt_entry_ ->Fill((*Hits).momentumAtEntry().mag());
+	 h_hit_track_map_id_->Fill((*Hits).trackId(), (*simTrack).trackId());
+	 //if ((*Hits).energyLoss()==0) {
+	 //h_hit_loss_track_pt_ ->Fill((*Hits).energyLoss(), (*simTrack).momentum().pt());
+	 h_track_id_track_pt_ ->Fill((*simTrack).momentum().pt(), fabs((*simTrack).type()));
+	   //	 }
+       }
+   }
+
+   for (unsigned i=0; i<trackerContainers_.size(); ++i){
+     Handle<std::vector<PSimHit> > simHitCollection;
+     //InputTag simHitsTag("famosSimHits", "TrackerHits");
+     iEvent.getByLabel(trackerContainers_[i], simHitCollection);
+     if(simHitCollection.isValid()) {
+       const std::vector<PSimHit>& simHits = *simHitCollection.product();
+       std::set<unsigned int> detIds;
+       for( std::vector<PSimHit>::const_iterator Hits=simHits.begin(); Hits!=simHits.end(); ++Hits){
+	 float dx = pow(pow( (*Hits).entryPoint().x()- (*Hits).exitPoint().x(), 2) + pow( (*Hits).entryPoint().y()- (*Hits).exitPoint().y(), 2)+ pow( (*Hits).entryPoint().z()- (*Hits).exitPoint().z(), 2), 1/2.);
+
+	 unsigned int detId = (*Hits).detUnitId();
+	 unsigned int isub  = DetId(detId).subdetId();
+	 h_hit_loss_track_pt_ ->Fill((*Hits).pabs(), (*Hits).energyLoss()/dx);
+	 if (isub == static_cast<int>(PixelSubdetector::PixelBarrel)) {
+	   if ((*Hits).particleType()<0) std::cout<<(*Hits).particleType()<<std::endl;
+
+	   h_hit_pixel_layers_->Fill(tTopo->pxbLayer(detId));
+	   histos_pxb_dedx_[tTopo->pxbLayer(detId)-1]->Fill((*Hits).energyLoss()/dx);
+	   histos_PDG_pxb_dedx_[tTopo->pxbLayer(detId)-1]->Fill((*Hits).particleType(), (*Hits).energyLoss()/dx);
+	   histos_PDG_pxb_dx_[tTopo->pxbLayer(detId)-1]->Fill(abs((*Hits).particleType()), dx);
+	   histos_pT_pxb_dedx_[tTopo->pxbLayer(detId)-1]->Fill(abs((*Hits).pabs()), (*Hits).energyLoss()/dx);
+	 }
+	 else if (isub == static_cast<int>(PixelSubdetector::PixelEndcap)){
+	   h_hit_pixel_layers_->Fill(3 + tTopo->pxfDisk(detId));
+	   histos_pxf_dedx_[tTopo->pxfDisk(detId)-1]->Fill((*Hits).energyLoss()/dx);
+	   std::cout<<(*Hits).energyLoss()/dx<<std::endl;
+	   histos_PDG_pxf_dedx_[tTopo->pxfDisk(detId)-1]->Fill(abs((*Hits).particleType()), (*Hits).energyLoss()/dx);
+	   histos_PDG_pxf_dx_[tTopo->pxfDisk(detId)-1]->Fill(abs((*Hits).particleType()), dx);
+
+	 }
+	 //if(detIds.insert(detId).second) {
+	   // The insert succeeded, so this detector element has not yet been processed.
+	 //	   unsigned int isub = DetId(detId).subdetId();
+	 else if (isub == StripSubdetector::TIB){
+	   histos_TIB_dedx_[tTopo->tibLayer(detId)-1]->Fill((*Hits).energyLoss()/dx);
+	   histos_PDG_TIB_dedx_[tTopo->tibLayer(detId)-1]->Fill(abs((*Hits).particleType()), (*Hits).energyLoss()/dx);
+	   histos_PDG_TIB_dx_[tTopo->tibLayer(detId)-1]->Fill(abs((*Hits).particleType()), dx);
+	 }
+	 else if (isub == StripSubdetector::TOB) {
+	   histos_TOB_dedx_[tTopo->tobLayer(detId)-1]->Fill((*Hits).energyLoss()/dx); 
+	   histos_PDG_TOB_dedx_[tTopo->tobLayer(detId)-1]->Fill(abs((*Hits).particleType()), (*Hits).energyLoss()/dx);
+	   histos_PDG_TOB_dx_[tTopo->tobLayer(detId)-1]->Fill(abs((*Hits).particleType()), dx);
+	 }
+	 else if (isub == StripSubdetector::TID) {
+	     histos_TID_dedx_[tTopo->tidRing(detId)-1]->Fill((*Hits).energyLoss()/dx);
+	     //   if ((*Hits).particleType()==211 || (*Hits).particleType()==2212)
+	     histos_PDG_TID_dedx_[tTopo->tidRing(detId)-1]->Fill(abs((*Hits).particleType()), (*Hits).energyLoss()/dx);
+	     histos_PDG_TID_dx_[tTopo->tidRing(detId)-1]->Fill(abs((*Hits).particleType()), dx);
+	 }
+	 else if (isub == StripSubdetector::TEC){
+	    histos_TEC_dedx_[tTopo->tecRing(detId)-1]->Fill((*Hits).energyLoss()/dx);
+	    histos_PDG_TEC_dedx_[tTopo->tecRing(detId)-1]->Fill(abs((*Hits).particleType()), (*Hits).energyLoss()/dx);
+	    histos_PDG_TEC_dx_[tTopo->tecRing(detId)-1]->Fill(abs((*Hits).particleType()), dx);
+	 }
+	 if((isub == StripSubdetector::TIB) || 
+	    (isub == StripSubdetector::TID) || 
+	    (isub == StripSubdetector::TOB) || 
+	    (isub == StripSubdetector::TEC)) {
+	   //if((isub == StripSubdetector::TOB)|| (isub == StripSubdetector::TID)){
+	   //std::cout<<(*Hits).localPosition().x()<<std::endl;
+
+	   //const LocalPoint& localPoint = (*Hits).localPosition();
+	   const DetId& theDetId = (*Hits).detUnitId();//geographicalId();
+	   //std::cout<< localPoint.x() <<std::endl;
+	   const GeomDet* theGeomDet = theTrackerGeometry->idToDet(theDetId);
+	   // const GlobalPoint& globalPoint = theGeomDet->toGlobal (localPoint); 
+	   //std::cout<< globalPoint.x() <<std::endl;
+	   h_hit_pixelbarrel_map_->Fill(theGeomDet->toGlobal((*Hits).localPosition()).z(),
+					theGeomDet->toGlobal((*Hits).localPosition()).y());
+	 }
+       }
+     }
+   }
+       //     for (auto const& pixel_rechit_per_detid : *simHitCollection) {
+       //DetId hitId = pixel_rechit_per_detid.detId();
+       // continue;
+       //}
+       //       DetId hitId = pixel_rechit_per_detid.detId();
+       //  for (auto const& a_pixel_rechit : pixel_rechit_per_detid) {
+       //if (a_pixel_rechit.isValid()) {
+       
+       // const PSimHitCollection * simhits = simhit.product();
+       //   for(size_t i = 0; i <  simhits.product()->size(); ++ i) continue;
+       //Handle<PSimHitContainer> CSCsimhits;
+       //   for(std::vector<PSimHit>::const_iterator simHit = simTrack.pSimHit_begin();
+       // simHit!= simTrack.pSimHit_end();
+       // simHit++)continue;
+       
+       // LogInfo("Demo") << "number of tracks "<<tracks->size();
+   } // if(simHitCollection.isValid())   ('famosenabled')
+
+#ifdef THIS_IS_AN_EVENT_EXAMPLE
+   Handle<ExampleData> pIn;
+   iEvent.getByLabel("example",pIn);
+#endif
+   
+#ifdef THIS_IS_AN_EVENTSETUP_EXAMPLE
+   ESHandle<SetupData> pSetup;
+   iSetup.get<SetupRecord>().get(pSetup);
+#endif
+}
+
+
+// ------------ method called once each job just before starting event loop  ------------
+void 
+DemoAnalyzer::beginJob()
+{
+}
+
+// ------------ method called once each job just after ending the event loop  ------------
+void 
+DemoAnalyzer::endJob() 
+{
+}
+
+// ------------ method called when starting to processes a run  ------------
+/*
+void 
+DemoAnalyzer::beginRun(edm::Run const&, edm::EventSetup const&)
+{
+}
+*/
+
+// ------------ method called when ending the processing of a run  ------------
+/*
+void 
+DemoAnalyzer::endRun(edm::Run const&, edm::EventSetup const&)
+{
+}
+*/
+
+// ------------ method called when starting to processes a luminosity block  ------------
+/*
+void 
+DemoAnalyzer::beginLuminosityBlock(edm::LuminosityBlock const&, edm::EventSetup const&)
+{
+}
+*/
+
+// ------------ method called when ending the processing of a luminosity block  ------------
+/*
+void 
+DemoAnalyzer::endLuminosityBlock(edm::LuminosityBlock const&, edm::EventSetup const&)
+{
+}
+*/
+
+// ------------ method fills 'descriptions' with the allowed parameters for the module  ------------
+void
+DemoAnalyzer::fillDescriptions(edm::ConfigurationDescriptions& descriptions) {
+  //The following says we do not know what parameters are allowed so do no validation
+  // Please change this to state exactly what you do use, even if it is no parameters
+  edm::ParameterSetDescription desc;
+  desc.setUnknown();
+  descriptions.addDefault(desc);
+}
+
+
+void 
+DemoAnalyzer::bookHistos()
+{
+    int    nbins   = 200;
+    float  range   = 1e-3;
+    int    nbinsX_PDG   = 2*2212;
+    float  rangeX_PDG   = 2213;
+    int    nbins_pT   = 50;
+    int    nbinsY   = 200;
+    float  rangeY_dedx   = 9e-3; //1e-3 (eloss)
+    float  rangeY_dx   = 1e-1;
+    float  rangeX_pT   = 60;
+
+    //Detectors
+    //Pixel Barrel - 3 different detector
+    bookEnergyLosses1D(histos_pxb_dedx_,  nbins, range, "PXB", nHistos_pxb_);
+    bookEnergyLosses2D( histos_PDG_pxb_dedx_, nbinsX_PDG, rangeX_PDG, nbinsY, rangeY_dedx,"dEdx", "PDG_PXB", nHistos_pxb_ );
+    bookEnergyLosses2D( histos_PDG_pxb_dx_, nbinsX_PDG, rangeX_PDG, nbinsY, rangeY_dx, "dx", "PDG_PXB", nHistos_pxb_ );
+    bookEnergyLosses2D( histos_pT_pxb_dedx_, nbins_pT, rangeX_pT, nbinsY, rangeY_dedx, "dEdx", "pT_PXB", nHistos_pxb_ );
+    //Pixel Endcap - 2 different detector
+    bookEnergyLosses1D(histos_pxf_dedx_,  nbins, range, "PXF", nHistos_pxf_);
+    bookEnergyLosses2D( histos_PDG_pxf_dedx_, nbinsX_PDG, rangeX_PDG, nbinsY, rangeY_dedx,"dEdx", "PDG_PXF", nHistos_pxf_ );
+    bookEnergyLosses2D( histos_PDG_pxf_dx_, nbinsX_PDG, rangeX_PDG, nbinsY, rangeY_dx,"dx", "PDG_PXF", nHistos_pxf_ );
+    //TIB - 4 different detectors
+    bookEnergyLosses1D( histos_TIB_dedx_, nbins, range, "TIB", nHistos_TIB_ );
+    bookEnergyLosses2D( histos_PDG_TIB_dedx_, nbinsX_PDG, rangeX_PDG, nbinsY, rangeY_dedx,"dEdx", "PDG_TIB", nHistos_TIB_ );
+    bookEnergyLosses2D( histos_PDG_TIB_dx_, nbinsX_PDG, rangeX_PDG, nbinsY, rangeY_dx,"dx", "PDG_TIB", nHistos_TIB_ );
+    // TOB - 6 different detectors
+    bookEnergyLosses1D( histos_TOB_dedx_, nbins, range, "TOB", nHistos_TOB_ );
+    bookEnergyLosses2D( histos_PDG_TOB_dedx_, nbinsX_PDG, rangeX_PDG, nbinsY, rangeY_dedx, "dEdx", "PDG_TOB", nHistos_TOB_ );
+    bookEnergyLosses2D( histos_PDG_TOB_dx_, nbinsX_PDG, rangeX_PDG, nbinsY, rangeY_dx, "dx", "PDG_TOB", nHistos_TOB_ );
+    // TID - 3 different detectors
+    bookEnergyLosses1D( histos_TID_dedx_, nbins, range, "TID", nHistos_TID_ );
+    bookEnergyLosses2D( histos_PDG_TID_dedx_, nbinsX_PDG, rangeX_PDG, nbinsY, rangeY_dedx,"dEdx", "PDG_TID", nHistos_TID_ );
+    bookEnergyLosses2D( histos_PDG_TID_dx_, nbinsX_PDG, rangeX_PDG, nbinsY, rangeY_dx,"dx", "PDG_TID", nHistos_TID_ );
+    // TEC - 9 different detectors
+    bookEnergyLosses1D( histos_TEC_dedx_, nbins, range, "TEC", nHistos_TEC_ );
+    bookEnergyLosses2D( histos_PDG_TEC_dedx_, nbinsX_PDG, rangeX_PDG, nbinsY, rangeY_dedx,"dEdx", "PDG_TEC", nHistos_TEC_ );
+    bookEnergyLosses2D( histos_PDG_TEC_dx_, nbinsX_PDG, rangeX_PDG, nbinsY, rangeY_dx,"dx", "PDG_TEC", nHistos_TEC_ );
+
+}
+
+void 
+DemoAnalyzer::bookEnergyLosses1D( std::vector<TH1F*>& histos_det_dedx, int nBins, float range, const TString &det, unsigned int nHistos )
+{
+  for(unsigned int iHist = 0; iHist < nHistos; iHist++) 
+    histos_det_dedx.push_back( fs_->make<TH1F>(Form( "hist_%s_%u_dedx" , det.Data() , iHist+1 ) ,
+					       Form( "Sim_Hit_dE/dx_%s_%u;dE/dx;Entries/bin" , det.Data() , iHist+1 ) ,
+					       nBins , 0.0 ,  range ));
+}
+
+void 
+DemoAnalyzer::bookEnergyLosses2D( std::vector<TH2F*>& histos_PDG_det_dedx, 
+				  int nBinsX, float rangeX, int nBinsY, float rangeY, 
+				  const TString &var, const TString &det, unsigned int nHistos )
+{
+  for(unsigned int iHist = 0; iHist < nHistos; iHist++) 
+    histos_PDG_det_dedx.push_back( fs_->make<TH2F>(Form( "hist_%s_%u_%s" , det.Data() , iHist+1, var.Data() ) ,
+						   Form( "Sim_Hit_%s_%s_%u;%s;Entries/bin" , var.Data(), det.Data() , iHist+1, var.Data() ) ,
+						   nBinsX , -rangeX , rangeX, nBinsY , 0.0 ,  rangeY));
+}
+/*
+void 
+DemoAnalyzer::fillHistos( unsigned int rawid ,TH1F*& hist_det_dedx, const TrackerTopology *tTopo) 
+{
+  int subdetid = ((rawid>>25)&0x7);
+
+  switch (subdetid) {
+  case 3: // Pixel Barrel
+    unsigned int theLayer = tTopo->tibLayer(rawid)
+    hist_dedx = histos_TIB_dedx[theLayer-1];
+  }
+} 
+*/ 
+//define this as a plug-in
+DEFINE_FWK_MODULE(DemoAnalyzer);
